@@ -20,8 +20,8 @@ import com.absinthe.libchecker.ui.fragment.BaseComponentFragment
 import com.absinthe.libchecker.ui.fragment.EXTRA_TYPE
 import com.absinthe.libchecker.ui.fragment.detail.LocatedCount
 import com.absinthe.libchecker.ui.fragment.detail.MODE_SORT_BY_LIB
+import com.absinthe.libchecker.utils.VersionCompat
 import com.absinthe.libchecker.utils.extensions.putArguments
-import com.absinthe.libchecker.utils.showToast
 import com.absinthe.rulesbundle.LCRules
 import com.absinthe.rulesbundle.Rule
 import kotlinx.coroutines.Dispatchers
@@ -172,7 +172,7 @@ class ComponentsAnalysisFragment : BaseComponentFragment<FragmentLibComponentBin
           when (which) {
             0 -> {
               ClipboardUtils.put(context, componentName)
-              context.showToast(R.string.toast_copied_to_clipboard)
+              VersionCompat.showCopiedOnClipboardToast(context)
             }
             1 -> {
               if (MonkeyKingManager.isSupportInteraction) {
@@ -203,7 +203,7 @@ class ComponentsAnalysisFragment : BaseComponentFragment<FragmentLibComponentBin
         .show()
     } else {
       ClipboardUtils.put(context, componentName)
-      context.showToast(R.string.toast_copied_to_clipboard)
+      VersionCompat.showCopiedOnClipboardToast(context)
     }
   }
 

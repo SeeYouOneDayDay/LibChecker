@@ -97,8 +97,10 @@ object LCAppUtils {
 
   fun getAppIcon(packageName: String): Drawable {
     return runCatching {
-      SystemServices.packageManager.getPackageInfo(packageName, 0)
-        .applicationInfo.loadIcon(SystemServices.packageManager)
+      VersionCompat.getPackageInfo(
+        packageName,
+        0
+      ).applicationInfo.loadIcon(SystemServices.packageManager)
     }.getOrDefault(ColorDrawable(Color.TRANSPARENT))
   }
 

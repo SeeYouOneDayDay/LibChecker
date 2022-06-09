@@ -9,8 +9,8 @@ import com.absinthe.libchecker.ui.detail.EXTRA_PACKAGE_NAME
 import com.absinthe.libchecker.ui.fragment.BaseDetailFragment
 import com.absinthe.libchecker.ui.fragment.EXTRA_TYPE
 import com.absinthe.libchecker.ui.fragment.detail.LocatedCount
+import com.absinthe.libchecker.utils.VersionCompat
 import com.absinthe.libchecker.utils.extensions.putArguments
-import com.absinthe.libchecker.utils.showToast
 import rikka.core.util.ClipboardUtils
 
 class DexAnalysisFragment : BaseDetailFragment<FragmentLibComponentBinding>() {
@@ -50,7 +50,7 @@ class DexAnalysisFragment : BaseDetailFragment<FragmentLibComponentBinding>() {
       animationEnable = true
       setOnItemLongClickListener { _, _, position ->
         ClipboardUtils.put(requireContext(), getItem(position).item.name)
-        context.showToast(R.string.toast_copied_to_clipboard)
+        VersionCompat.showCopiedOnClipboardToast(context)
         true
       }
       setDiffCallback(LibStringDiffUtil())

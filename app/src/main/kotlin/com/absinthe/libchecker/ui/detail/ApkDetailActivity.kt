@@ -49,7 +49,7 @@ class ApkDetailActivity : BaseAppDetailActivity(), IDetailContainer {
     intent?.let { i ->
       when {
         i.action == Intent.ACTION_SEND -> {
-          intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { stream ->
+          VersionCompat.getParcelableExtra<Uri>(intent, Intent.EXTRA_STREAM)?.let { stream ->
             initPackage(stream)
           } ?: run {
             finish()
@@ -98,7 +98,7 @@ class ApkDetailActivity : BaseAppDetailActivity(), IDetailContainer {
                     or VersionCompat.MATCH_DISABLED_COMPONENTS
                     or VersionCompat.MATCH_UNINSTALLED_PACKAGES
                   )
-                packageManager.getPackageArchiveInfo(tf.path, flag)?.also {
+                VersionCompat.getPackageArchiveInfo(tf.path, flag)?.also {
                   it.applicationInfo.sourceDir = tf.path
                   it.applicationInfo.publicSourceDir = tf.path
                 }?.let { pi ->

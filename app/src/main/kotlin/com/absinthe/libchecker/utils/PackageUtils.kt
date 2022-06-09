@@ -80,12 +80,12 @@ object PackageUtils {
    */
   @Throws(PackageManager.NameNotFoundException::class)
   fun getPackageInfo(packageName: String, flag: Int = 0): PackageInfo {
-    val packageInfo = SystemServices.packageManager.getPackageInfo(
+    val packageInfo = VersionCompat.getPackageInfo(
       packageName,
       VersionCompat.MATCH_UNINSTALLED_PACKAGES or VersionCompat.MATCH_DISABLED_COMPONENTS or flag
     )
     if (FreezeUtils.isAppFrozen(packageInfo.applicationInfo)) {
-      return SystemServices.packageManager.getPackageArchiveInfo(
+      return VersionCompat.getPackageArchiveInfo(
         packageInfo.applicationInfo.sourceDir, VersionCompat.MATCH_DISABLED_COMPONENTS or flag
       )?.apply {
         applicationInfo.sourceDir = packageInfo.applicationInfo.sourceDir

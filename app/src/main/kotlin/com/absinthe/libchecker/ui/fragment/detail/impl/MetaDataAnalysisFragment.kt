@@ -9,8 +9,8 @@ import com.absinthe.libchecker.ui.detail.EXTRA_PACKAGE_NAME
 import com.absinthe.libchecker.ui.fragment.BaseDetailFragment
 import com.absinthe.libchecker.ui.fragment.EXTRA_TYPE
 import com.absinthe.libchecker.ui.fragment.detail.LocatedCount
+import com.absinthe.libchecker.utils.VersionCompat
 import com.absinthe.libchecker.utils.extensions.putArguments
-import com.absinthe.libchecker.utils.showToast
 import rikka.core.util.ClipboardUtils
 
 class MetaDataAnalysisFragment : BaseDetailFragment<FragmentLibNativeBinding>() {
@@ -53,7 +53,7 @@ class MetaDataAnalysisFragment : BaseDetailFragment<FragmentLibNativeBinding>() 
           requireContext(),
           getItem(position).item.name + ": " + getItem(position).item.source
         )
-        context.showToast(R.string.toast_copied_to_clipboard)
+        VersionCompat.showCopiedOnClipboardToast(context)
         true
       }
       setDiffCallback(LibStringDiffUtil())

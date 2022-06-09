@@ -40,7 +40,7 @@ import com.absinthe.libchecker.recyclerview.adapter.snapshot.node.SnapshotTitleN
 import com.absinthe.libchecker.ui.app.CheckPackageOnResumingActivity
 import com.absinthe.libchecker.utils.LCAppUtils
 import com.absinthe.libchecker.utils.PackageUtils
-import com.absinthe.libchecker.utils.Toasty
+import com.absinthe.libchecker.utils.VersionCompat
 import com.absinthe.libchecker.utils.extensions.addPaddingTop
 import com.absinthe.libchecker.utils.extensions.dp
 import com.absinthe.libchecker.utils.extensions.sizeToString
@@ -67,7 +67,7 @@ class SnapshotDetailActivity : CheckPackageOnResumingActivity<ActivitySnapshotDe
 
   private val adapter by unsafeLazy { SnapshotDetailAdapter(lifecycleScope) }
   private val viewModel: SnapshotViewModel by viewModels()
-  private val _entity by unsafeLazy { intent.getSerializableExtra(EXTRA_ENTITY) as? SnapshotDiffItem }
+  private val _entity by unsafeLazy { VersionCompat.getSerializableExtra<SnapshotDiffItem>(intent, EXTRA_ENTITY) }
 
   override fun requirePackageName() = entity.packageName
 
@@ -357,7 +357,7 @@ class SnapshotDetailActivity : CheckPackageOnResumingActivity<ActivitySnapshotDe
       }
     }
     ClipboardUtils.put(this, sb.toString())
-    Toasty.showShort(this, R.string.toast_copied_to_clipboard)
+    VersionCompat.showCopiedOnClipboardToast(this)
   }
 
   private fun getComponentName(@LibType type: Int): String {

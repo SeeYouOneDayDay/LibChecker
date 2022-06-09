@@ -74,6 +74,7 @@ import com.absinthe.libchecker.utils.PackageUtils.isSplitsApk
 import com.absinthe.libchecker.utils.PackageUtils.isUseJetpackCompose
 import com.absinthe.libchecker.utils.PackageUtils.isXposedModule
 import com.absinthe.libchecker.utils.Toasty
+import com.absinthe.libchecker.utils.VersionCompat
 import com.absinthe.libchecker.utils.doOnMainThreadIdle
 import com.absinthe.libchecker.utils.extensions.getDrawable
 import com.absinthe.libchecker.utils.extensions.isOrientationPortrait
@@ -195,7 +196,7 @@ abstract class BaseAppDetailActivity :
                     ClipData.newUri(contentResolver, Constants.TEMP_ICON, uri)
                   )
                 ) {
-                  Toasty.showShort(this@BaseAppDetailActivity, R.string.toast_copied_to_clipboard)
+                  VersionCompat.showCopiedOnClipboardToast(this@BaseAppDetailActivity)
                 }
               }
               true

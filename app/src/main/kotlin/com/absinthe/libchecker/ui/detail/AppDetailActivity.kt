@@ -26,7 +26,7 @@ class AppDetailActivity : BaseAppDetailActivity(), IDetailContainer {
   private val pkgName by unsafeLazy { intent.getStringExtra(EXTRA_PACKAGE_NAME) }
   private val refName by unsafeLazy { intent.getStringExtra(EXTRA_REF_NAME) }
   private val refType by unsafeLazy { intent.getIntExtra(EXTRA_REF_TYPE, ALL) }
-  private val extraBean by unsafeLazy { intent.getParcelableExtra(EXTRA_DETAIL_BEAN) as? DetailExtraBean }
+  private val extraBean by unsafeLazy { VersionCompat.getParcelableExtra<DetailExtraBean>(intent, EXTRA_DETAIL_BEAN) }
 
   override val apkAnalyticsMode: Boolean = false
   override fun requirePackageName() = pkgName
