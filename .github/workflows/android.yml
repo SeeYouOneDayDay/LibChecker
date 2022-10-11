@@ -1,18 +1,18 @@
 name: Android CI
 
 on:
-  push:
-    branches:
-      - master
-    paths-ignore:
-      - '.idea/**'
-      - '.gitattributes'
-      - '.github/**.json'
-      - '.gitignore'
-      - '.gitmodules'
-      - '**.md'
-      - 'LICENSE'
-      - 'NOTICE'
+#  push:
+#    branches:
+#      - master
+#    paths-ignore:
+#      - '.idea/**'
+#      - '.gitattributes'
+#      - '.github/**.json'
+#      - '.gitignore'
+#      - '.gitmodules'
+#      - '**.md'
+#      - 'LICENSE'
+#      - 'NOTICE'
   pull_request:
     paths-ignore:
       - '.idea/**'

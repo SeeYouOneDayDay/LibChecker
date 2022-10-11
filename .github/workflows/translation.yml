@@ -2,10 +2,10 @@ name: Crowdin Action
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ master ]
-    paths:
-      - app/src/main/res/values/strings.xml
+#  push:
+#    branches: [ master ]
+#    paths:
+#      - app/src/main/res/values/strings.xml
   schedule:
     - cron: '0 0 * * *'
 

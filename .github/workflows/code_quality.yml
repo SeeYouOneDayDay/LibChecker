@@ -1,10 +1,10 @@
 name: Qodana
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - 'releases/*'
+#  push:
+#    branches:
+#      - master
+#      - 'releases/*'
 
 env:
   APP_CENTER_SECRET: ${{secrets.APP_CENTER_SECRET}}
