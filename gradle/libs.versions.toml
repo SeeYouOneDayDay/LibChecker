@@ -1,9 +1,9 @@
 [versions]
-agp = "7.3.0"
+agp = "7.3.1"
 androidX-lifecycle = "2.5.1"
 androidX-room = "2.5.0-beta01"
 appCenter = "4.4.5"
-grpc = "1.49.2"
+grpc = "1.50.0"
 hiddenApiRefine = "3.1.1"
 kotlin = "1.7.20"
 protoc = "3.21.7"
@@ -18,7 +18,7 @@ hiddenApiRefine = { id = "dev.rikka.tools.refine", version.ref = "hiddenApiRefin
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
 kotlinter = { id = "org.jmailen.kotlinter", version = "3.12.0" }
-ksp = { id = "com.google.devtools.ksp", version = "1.7.20-1.0.6" }
+ksp = { id = "com.google.devtools.ksp", version = "1.7.20-1.0.7" }
 protobuf = { id = "com.google.protobuf", version = "0.9.1" }
 moshiX = "dev.zacsweers.moshix:0.19.0"
 
