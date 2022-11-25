@@ -43,7 +43,8 @@ class LibCheckerApp : Application() {
     }
 
     if (OsUtils.atLeastP()) {
-      HiddenApiBypass.addHiddenApiExemptions("")
+      // 所有api开头都是L开头的，这是意味着忽略全部
+      HiddenApiBypass.addHiddenApiExemptions("L")
     }
 
     app = this
