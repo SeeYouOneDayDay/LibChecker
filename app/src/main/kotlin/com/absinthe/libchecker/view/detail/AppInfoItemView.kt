@@ -14,6 +14,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
+import androidx.core.view.isVisible
 import androidx.core.view.marginTop
 import com.absinthe.libchecker.R
 import com.absinthe.libchecker.utils.extensions.getDimensionPixelSize
@@ -68,10 +69,11 @@ class AppInfoItemView(context: Context) : AViewGroup(context) {
 
   fun setText(charSequence: CharSequence) {
     text.text = charSequence
+    text.isVisible = charSequence.isNotEmpty()
   }
 
   fun setText(@StringRes res: Int) {
-    text.text = context.getString(res)
+    setText(context.getString(res))
   }
 
   fun setIcon(@DrawableRes res: Int) {
@@ -112,7 +114,8 @@ class AppInfoItemView(context: Context) : AViewGroup(context) {
     )
     setMeasuredDimension(
       measuredWidth,
-      (paddingTop + icon.measuredHeight + text.marginTop + text.measuredHeight + paddingBottom)
+      // Ignore errors within 10 pixels, as the different heights of Chinese and English in some fonts can cause the Adapter to fail to align
+      (paddingTop + icon.measuredHeight + text.marginTop + text.measuredHeight + paddingBottom) / 10 * 10
     )
   }
 

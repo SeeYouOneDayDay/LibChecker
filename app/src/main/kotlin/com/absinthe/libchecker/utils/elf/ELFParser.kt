@@ -35,14 +35,14 @@ class ELFParser(inputStream: InputStream) {
   }
 
   fun getEType(): Int {
-    if (!isElf()) {
+    if (!isElf() || !this::e_type.isInitialized) {
       return ET_NOT_ELF
     }
     return e_type[0].toInt()
   }
 
   fun getEClass(): Int {
-    if (!isElf()) {
+    if (!isElf() || !this::e_ident_entity.isInitialized) {
       return ET_NOT_ELF
     }
     return e_ident_entity.EI_CLASS[0].toInt()
@@ -82,7 +82,7 @@ class ELFParser(inputStream: InputStream) {
         e_shnum = ByteArray(ELF64_HALF)
         e_shstrndx = ByteArray(ELF64_HALF)
       } else {
-        Timber.e("Not a valid ELF file")
+        Timber.w("Not a valid ELF file")
         return@use
       }
       it.read(e_type)

@@ -1,8 +1,8 @@
 pluginManagement {
   repositories {
-    gradlePluginPortal()
     google()
     mavenCentral()
+    gradlePluginPortal()
   }
 }
 
@@ -16,7 +16,7 @@ dependencyResolutionManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.12.1"
+  id("com.gradle.enterprise") version "3.13.2"
 }
 
 gradleEnterprise {
@@ -27,6 +27,7 @@ gradleEnterprise {
   }
 }
 
+enableFeaturePreview("STABLE_CONFIGURATION_CACHE")
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(":app", ":hidden-api")

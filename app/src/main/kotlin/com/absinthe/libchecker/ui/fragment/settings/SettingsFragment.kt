@@ -9,38 +9,42 @@ import android.text.TextUtils
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
 import androidx.core.text.HtmlCompat
 import androidx.fragment.app.activityViewModels
+import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.TwoStatePreference
 import androidx.recyclerview.widget.RecyclerView
 import com.absinthe.libchecker.BuildConfig
 import com.absinthe.libchecker.R
-import com.absinthe.libchecker.SystemServices
-import com.absinthe.libchecker.base.BaseAlertDialogBuilder
+import com.absinthe.libchecker.app.SystemServices
 import com.absinthe.libchecker.constant.Constants
 import com.absinthe.libchecker.constant.GlobalValues
 import com.absinthe.libchecker.constant.URLManager
 import com.absinthe.libchecker.ui.about.AboutActivity
+import com.absinthe.libchecker.ui.base.BaseAlertDialogBuilder
 import com.absinthe.libchecker.ui.detail.ApkDetailActivity
 import com.absinthe.libchecker.ui.fragment.IAppBarContainer
 import com.absinthe.libchecker.ui.fragment.IListController
-import com.absinthe.libchecker.utils.PackageUtils
+import com.absinthe.libchecker.utils.LCAppUtils
 import com.absinthe.libchecker.utils.Toasty
+import com.absinthe.libchecker.utils.UiUtils
 import com.absinthe.libchecker.utils.extensions.addPaddingTop
+import com.absinthe.libchecker.utils.extensions.doOnMainThreadIdle
+import com.absinthe.libchecker.utils.extensions.setBottomPaddingSpace
 import com.absinthe.libchecker.viewmodel.HomeViewModel
 import com.absinthe.libraries.utils.extensions.getBoolean
+import com.absinthe.libraries.utils.manager.SystemBarManager
 import com.absinthe.libraries.utils.utils.AntiShakeUtils
-import com.absinthe.libraries.utils.utils.UiUtils
 import com.absinthe.rulesbundle.LCRemoteRepo
 import com.absinthe.rulesbundle.LCRules
 import com.microsoft.appcenter.analytics.Analytics
 import com.microsoft.appcenter.analytics.EventProperties
 import java.util.Locale
-import rikka.material.app.DayNightDelegate
 import rikka.material.app.LocaleDelegate
 import rikka.preference.SimpleMenuPreference
 import rikka.recyclerview.fixEdgeEffect
@@ -116,7 +120,7 @@ class SettingsFragment : PreferenceFragmentCompat(), IListController {
       }
     }
     val languagePreference =
-      findPreference<SimpleMenuPreference>(Constants.PREF_LOCALE)?.apply {
+      findPreference<ListPreference>(Constants.PREF_LOCALE)?.apply {
         setOnPreferenceChangeListener { _, newValue ->
           if (newValue is String) {
             val locale: Locale = if ("SYSTEM" == newValue) {
@@ -140,7 +144,7 @@ class SettingsFragment : PreferenceFragmentCompat(), IListController {
     findPreference<SimpleMenuPreference>(Constants.PREF_DARK_MODE)?.apply {
       setOnPreferenceChangeListener { _, newValue ->
         GlobalValues.darkMode = newValue.toString()
-        DayNightDelegate.setDefaultNightMode(com.absinthe.libchecker.utils.UiUtils.getNightMode())
+        AppCompatDelegate.setDefaultNightMode(UiUtils.getNightMode())
         activity?.recreate()
         true
       }
@@ -243,15 +247,8 @@ class SettingsFragment : PreferenceFragmentCompat(), IListController {
     }
     findPreference<Preference>(Constants.PREF_RATE)?.apply {
       setOnPreferenceClickListener {
-        val hasInstallCoolApk = PackageUtils.isAppInstalled(Constants.PackageNames.COOLAPK)
-        val marketUrl = if (hasInstallCoolApk) {
-          URLManager.COOLAPK_APP_PAGE
-        } else {
-          URLManager.MARKET_PAGE
-        }
-
         try {
-          startActivity(Intent.parseUri(marketUrl, 0))
+          LCAppUtils.launchMarketPage(requireContext(), BuildConfig.APPLICATION_ID)
           Analytics.trackEvent(
             Constants.Event.SETTINGS,
             EventProperties().set("PREF_RATE", "Clicked")
@@ -352,9 +349,13 @@ class SettingsFragment : PreferenceFragmentCompat(), IListController {
       super.onCreateRecyclerView(inflater, parent, savedInstanceState) as BorderRecyclerView
     recyclerView.id = android.R.id.list
     recyclerView.fixEdgeEffect()
-    recyclerView.addPaddingTop(UiUtils.getStatusBarHeight())
+    recyclerView.addPaddingTop(SystemBarManager.statusBarSize)
     recyclerView.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
     recyclerView.isVerticalScrollBarEnabled = false
+
+    doOnMainThreadIdle {
+      recyclerView.setBottomPaddingSpace()
+    }
 
     val lp = recyclerView.layoutParams
     if (lp is FrameLayout.LayoutParams) {
