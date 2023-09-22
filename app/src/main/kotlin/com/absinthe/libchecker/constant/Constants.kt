@@ -86,6 +86,7 @@ object Constants {
   const val PREF_ADVANCED_OPTIONS = "advancedOptions"
   const val PREF_ITEM_ADVANCED_OPTIONS = "itemAdvancedOptions"
   const val PREF_LIB_REF_OPTIONS = "libRefOptions"
+  const val PREF_SNAPSHOT_OPTIONS = "snapshotOptions"
 
   object Event {
     const val LAUNCH_ACTION = "Launch Action"
@@ -100,5 +101,6 @@ object Constants {
     const val COOLAPK = "com.coolapk.market"
     const val MATERIAL_FILES = "me.zhanghai.android.files"
     const val SHIZUKU = "moe.shizuku.privileged.api"
+    const val SYSTEMUI = "com.android.systemui"
   }
 }

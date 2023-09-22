@@ -14,20 +14,34 @@ import com.absinthe.libchecker.R
 import com.absinthe.libchecker.constant.AdvancedOptions
 import com.absinthe.libchecker.constant.Constants
 import com.absinthe.libchecker.constant.GlobalValues
+import com.absinthe.libchecker.constant.SnapshotOptions
 import com.absinthe.libchecker.model.SnapshotDiffItem
+import com.absinthe.libchecker.recyclerview.adapter.HighlightAdapter
+import com.absinthe.libchecker.utils.DateUtils
+import com.absinthe.libchecker.utils.LCAppUtils
 import com.absinthe.libchecker.utils.PackageUtils
+import com.absinthe.libchecker.utils.extensions.PREINSTALLED_TIMESTAMP
 import com.absinthe.libchecker.utils.extensions.getColorByAttr
 import com.absinthe.libchecker.utils.extensions.getDrawable
 import com.absinthe.libchecker.utils.extensions.setAlphaForAll
 import com.absinthe.libchecker.utils.extensions.sizeToString
+import com.absinthe.libchecker.utils.extensions.unsafeLazy
 import com.absinthe.libchecker.view.detail.CenterAlignImageSpan
 import com.absinthe.libchecker.view.snapshot.SnapshotItemView
-import com.chad.library.adapter.base.BaseQuickAdapter
 import com.chad.library.adapter.base.viewholder.BaseViewHolder
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 const val ARROW = "→"
 
-class SnapshotAdapter : BaseQuickAdapter<SnapshotDiffItem, BaseViewHolder>(0) {
+class SnapshotAdapter(private val cardMode: CardMode = CardMode.NORMAL) : HighlightAdapter<SnapshotDiffItem>() {
+
+  private val formatter by unsafeLazy {
+    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+  }
+  private val formatterToday by unsafeLazy {
+    SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+  }
 
   override fun onCreateDefViewHolder(parent: ViewGroup, viewType: Int): BaseViewHolder {
     return createBaseViewHolder(
@@ -42,6 +56,7 @@ class SnapshotAdapter : BaseQuickAdapter<SnapshotDiffItem, BaseViewHolder>(0) {
 
   override fun convert(holder: BaseViewHolder, item: SnapshotDiffItem) {
     (holder.itemView as SnapshotItemView).container.apply {
+      setDrawStroke(cardMode == CardMode.DEMO)
       val packageInfo = runCatching {
         PackageUtils.getPackageInfo(item.packageName)
       }.getOrNull()
@@ -67,16 +82,17 @@ class SnapshotAdapter : BaseQuickAdapter<SnapshotDiffItem, BaseViewHolder>(0) {
         moved = item.moved && !isNewOrDeleted
       }
 
-      if (item.isTrackItem) {
-        appName.text = buildSpannedString {
+      val appNameLabel = if (item.isTrackItem) {
+        buildSpannedString {
           inSpans(ImageSpan(context, R.drawable.ic_track)) {
             append(" ")
           }
-          append(getDiffString(item.labelDiff, isNewOrDeleted))
+          append(LCAppUtils.getDiffString(item.labelDiff, isNewOrDeleted))
         }
       } else {
-        appName.text = getDiffString(item.labelDiff, isNewOrDeleted)
+        LCAppUtils.getDiffString(item.labelDiff, isNewOrDeleted)
       }
+      setOrHighlightText(appName, appNameLabel)
 
       if (isNewOrDeleted) {
         val labelDrawable = if (item.newInstalled) {
@@ -96,9 +112,9 @@ class SnapshotAdapter : BaseQuickAdapter<SnapshotDiffItem, BaseViewHolder>(0) {
         appName.text = sb
       }
 
-      packageName.text = item.packageName
+      setOrHighlightText(packageName, item.packageName)
       versionInfo.text =
-        getDiffString(item.versionNameDiff, item.versionCodeDiff, isNewOrDeleted, "%s (%s)")
+        LCAppUtils.getDiffString(item.versionNameDiff, item.versionCodeDiff, isNewOrDeleted, "%s (%s)")
 
       if (item.packageSizeDiff.old > 0L) {
         packageSizeInfo.isVisible = true
@@ -106,12 +122,12 @@ class SnapshotAdapter : BaseQuickAdapter<SnapshotDiffItem, BaseViewHolder>(0) {
           item.packageSizeDiff.old.sizeToString(context),
           item.packageSizeDiff.new?.sizeToString(context)
         )
-        packageSizeInfo.text = getDiffString(sizeDiff, isNewOrDeleted)
+        packageSizeInfo.text = LCAppUtils.getDiffString(sizeDiff, isNewOrDeleted)
       } else {
         packageSizeInfo.isGone = true
       }
 
-      targetApiInfo.text = getDiffString(item.targetApiDiff, isNewOrDeleted, "API %s")
+      targetApiInfo.text = LCAppUtils.getDiffString(item.targetApiDiff, isNewOrDeleted, "API %s")
 
       val oldAbiString = PackageUtils.getAbiString(context, item.abiDiff.old.toInt(), false)
       val oldAbiSpanString: SpannableString
@@ -180,31 +196,24 @@ class SnapshotAdapter : BaseQuickAdapter<SnapshotDiffItem, BaseViewHolder>(0) {
         builder.append(" $ARROW ").append(newAbiSpanString)
       }
       abiInfo.text = builder
+
+      updateTime.isVisible = (GlobalValues.snapshotOptions and SnapshotOptions.SHOW_UPDATE_TIME) > 0
+      if (updateTime.isVisible) {
+        val timeText = if (DateUtils.isTimestampToday(item.updateTime)) {
+          formatterToday.format(item.updateTime)
+        } else {
+          formatter.format(item.updateTime)
+        }
+        updateTime.text = if (item.updateTime <= PREINSTALLED_TIMESTAMP) {
+          context.getString(R.string.snapshot_preinstalled_app)
+        } else {
+          context.getString(R.string.format_last_updated).format(timeText)
+        }
+      }
     }
   }
 
-  private fun <T> getDiffString(
-    diff: SnapshotDiffItem.DiffNode<T>,
-    isNewOrDeleted: Boolean = false,
-    format: String = "%s"
-  ): String {
-    return if (diff.old != diff.new && !isNewOrDeleted) {
-      "${format.format(diff.old)} $ARROW ${format.format(diff.new)}"
-    } else {
-      format.format(diff.old)
-    }
-  }
-
-  private fun getDiffString(
-    diff1: SnapshotDiffItem.DiffNode<*>,
-    diff2: SnapshotDiffItem.DiffNode<*>,
-    isNewOrDeleted: Boolean = false,
-    format: String = "%s"
-  ): String {
-    return if ((diff1.old != diff1.new || diff2.old != diff2.new) && !isNewOrDeleted) {
-      "${format.format(diff1.old, diff2.old)} $ARROW ${format.format(diff1.new, diff2.new)}"
-    } else {
-      format.format(diff1.old, diff2.old)
-    }
+  enum class CardMode {
+    NORMAL, DEMO
   }
 }

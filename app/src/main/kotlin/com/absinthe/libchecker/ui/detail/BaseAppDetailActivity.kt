@@ -13,7 +13,6 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
@@ -24,6 +23,7 @@ import androidx.core.view.MenuProvider
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -72,6 +72,7 @@ import com.absinthe.libchecker.utils.FileUtils
 import com.absinthe.libchecker.utils.OsUtils
 import com.absinthe.libchecker.utils.PackageUtils
 import com.absinthe.libchecker.utils.Toasty
+import com.absinthe.libchecker.utils.extensions.addBackStateHandler
 import com.absinthe.libchecker.utils.extensions.copyToClipboard
 import com.absinthe.libchecker.utils.extensions.doOnMainThreadIdle
 import com.absinthe.libchecker.utils.extensions.dp
@@ -84,7 +85,6 @@ import com.absinthe.libchecker.utils.extensions.getVersionCode
 import com.absinthe.libchecker.utils.extensions.getVersionString
 import com.absinthe.libchecker.utils.extensions.setLongClickCopiedToClipboard
 import com.absinthe.libchecker.utils.extensions.unsafeLazy
-import com.absinthe.libchecker.utils.extensions.valueUnsafe
 import com.absinthe.libchecker.utils.harmony.ApplicationDelegate
 import com.absinthe.libchecker.utils.toJson
 import com.absinthe.libchecker.view.detail.AppBarStateChangeListener
@@ -134,20 +134,17 @@ abstract class BaseAppDetailActivity :
   override fun onCreate(savedInstanceState: Bundle?) {
     binding = ActivityAppDetailBinding.inflate(layoutInflater)
     super.onCreate(savedInstanceState)
-    addMenuProvider(this)
+    addMenuProvider(this, this, Lifecycle.State.STARTED)
     setSupportActionBar(getToolbar())
     supportActionBar?.apply {
       setDisplayHomeAsUpEnabled(true)
       setDisplayShowHomeEnabled(true)
     }
-    onBackPressedDispatcher.addCallback(this, true) {
-      val closeBtn = findViewById<View>(androidx.appcompat.R.id.search_close_btn)
-      if (closeBtn != null) {
-        binding.toolbar.collapseActionView()
-      } else {
-        finish()
-      }
-    }
+    onBackPressedDispatcher.addBackStateHandler(
+      lifecycleOwner = this,
+      enabledState = { binding.toolbar.hasExpandedActionView() },
+      handler = { binding.toolbar.collapseActionView() }
+    )
   }
 
   protected fun onPackageInfoAvailable(packageInfo: PackageInfo, extraBean: DetailExtraBean?) {
@@ -613,7 +610,7 @@ abstract class BaseAppDetailActivity :
           Features.Ext.APPLICATION_PROP -> {
             featureAdapter.addData(
               FeatureItem(R.drawable.ic_app_prop) {
-                FeaturesDialog.showAppPropDialog(this, packageInfo.packageName)
+                FeaturesDialog.showAppPropDialog(this, packageInfo)
               }
             )
           }
@@ -761,15 +758,17 @@ abstract class BaseAppDetailActivity :
         if (processBarView == null) {
           initProcessBarView()
         }
-        processBarView!!.setData(
-          viewModel.processMapLiveData.valueUnsafe.map { mapItem ->
-            ProcessBarAdapter.ProcessBarItem(
-              mapItem.key,
-              mapItem.value
-            )
-          }
-        )
-        processBarView?.isVisible = true
+        viewModel.processMapLiveData.value?.let {
+          processBarView?.setData(
+            it.map { mapItem ->
+              ProcessBarAdapter.ProcessBarItem(
+                mapItem.key,
+                mapItem.value
+              )
+            }
+          )
+          processBarView?.isVisible = true
+        }
       } else {
         binding.detailToolbarContainer.removeView(processBarView)
         processBarView = null

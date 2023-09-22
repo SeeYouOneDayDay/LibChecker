@@ -10,9 +10,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Checkable
 import android.widget.FrameLayout
-import androidx.activity.addCallback
 import androidx.appcompat.widget.SearchView
 import androidx.core.view.MenuProvider
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.absinthe.libchecker.R
@@ -49,13 +49,10 @@ class TrackActivity :
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     initView()
-    onBackPressedDispatcher.addCallback(this, true) {
-      finish()
-    }
   }
 
   private fun initView() {
-    addMenuProvider(this)
+    addMenuProvider(this, this, Lifecycle.State.STARTED)
     setSupportActionBar(binding.toolbar)
     (binding.root as ViewGroup).bringChildToFront(binding.appbar)
     supportActionBar?.setDisplayHomeAsUpEnabled(true)

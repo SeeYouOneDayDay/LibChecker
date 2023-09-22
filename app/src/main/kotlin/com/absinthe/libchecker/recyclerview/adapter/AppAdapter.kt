@@ -16,6 +16,7 @@ import com.absinthe.libchecker.constant.GlobalValues
 import com.absinthe.libchecker.database.entity.LCItem
 import com.absinthe.libchecker.utils.FreezeUtils
 import com.absinthe.libchecker.utils.PackageUtils
+import com.absinthe.libchecker.utils.extensions.addStrikeThroughSpan
 import com.absinthe.libchecker.utils.extensions.getColorByAttr
 import com.absinthe.libchecker.utils.extensions.getColorStateListByAttr
 import com.absinthe.libchecker.utils.extensions.getDimensionPixelSize
@@ -24,9 +25,7 @@ import com.absinthe.libchecker.view.applist.AppItemView
 import com.absinthe.libchecker.view.detail.CenterAlignImageSpan
 import com.chad.library.adapter.base.viewholder.BaseViewHolder
 
-class AppAdapter : HighlightAdapter<LCItem>() {
-
-  var cardMode = CardMode.NORMAL
+class AppAdapter(private val cardMode: CardMode = CardMode.NORMAL) : HighlightAdapter<LCItem>() {
 
   override fun onCreateDefViewHolder(parent: ViewGroup, viewType: Int): BaseViewHolder {
     return createBaseViewHolder(
@@ -53,7 +52,7 @@ class AppAdapter : HighlightAdapter<LCItem>() {
       val packageInfo = if (item.packageName != Constants.EXAMPLE_PACKAGE) {
         val packageInfo = runCatching {
           PackageUtils.getPackageInfo(item.packageName)
-        }.getOrNull() ?: return
+        }.getOrNull()
         icon.load(packageInfo)
         packageInfo
       } else {
@@ -61,6 +60,11 @@ class AppAdapter : HighlightAdapter<LCItem>() {
       }
       setOrHighlightText(appName, item.label)
       setOrHighlightText(packageName, item.packageName)
+
+      if (packageInfo == null && cardMode != CardMode.DEMO) {
+        appName.addStrikeThroughSpan()
+        packageName.addStrikeThroughSpan()
+      }
 
       versionInfo.text = PackageUtils.getVersionString(item.versionName, item.versionCode)
 

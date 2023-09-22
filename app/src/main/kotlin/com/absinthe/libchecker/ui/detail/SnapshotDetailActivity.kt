@@ -1,6 +1,6 @@
 package com.absinthe.libchecker.ui.detail
 
-import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.Gravity
 import android.view.Menu
@@ -10,6 +10,7 @@ import android.widget.FrameLayout
 import androidx.activity.viewModels
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.SimpleItemAnimator
 import coil.load
@@ -41,6 +42,7 @@ import com.absinthe.libchecker.recyclerview.adapter.snapshot.node.SnapshotCompon
 import com.absinthe.libchecker.recyclerview.adapter.snapshot.node.SnapshotNativeNode
 import com.absinthe.libchecker.recyclerview.adapter.snapshot.node.SnapshotTitleNode
 import com.absinthe.libchecker.ui.app.CheckPackageOnResumingActivity
+import com.absinthe.libchecker.utils.LCAppUtils
 import com.absinthe.libchecker.utils.PackageUtils
 import com.absinthe.libchecker.utils.extensions.addPaddingTop
 import com.absinthe.libchecker.utils.extensions.dp
@@ -62,6 +64,7 @@ import me.zhanghai.android.appiconloader.AppIconLoader
 import rikka.core.util.ClipboardUtils
 
 const val EXTRA_ENTITY = "EXTRA_ENTITY"
+const val EXTRA_ICON = "EXTRA_ICON"
 
 class SnapshotDetailActivity :
   CheckPackageOnResumingActivity<ActivitySnapshotDetailBinding>(),
@@ -77,8 +80,14 @@ class SnapshotDetailActivity :
       EXTRA_ENTITY
     )
   }
+  private val _icon by unsafeLazy {
+    IntentCompat.getParcelableExtra<Bitmap>(
+      intent,
+      EXTRA_ICON
+    )
+  }
 
-  override fun requirePackageName() = entity.packageName
+  override fun requirePackageName() = entity.packageName.takeIf { it.contains("/").not() }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -106,7 +115,7 @@ class SnapshotDetailActivity :
   }
 
   private fun initView() {
-    addMenuProvider(this)
+    addMenuProvider(this, this, Lifecycle.State.STARTED)
     setSupportActionBar(binding.toolbar)
     supportActionBar?.apply {
       setDisplayHomeAsUpEnabled(true)
@@ -140,12 +149,13 @@ class SnapshotDetailActivity :
           this@SnapshotDetailActivity
         )
         runCatching {
-          val icon = appIconLoader.loadIcon(
-            PackageUtils.getPackageInfo(
-              entity.packageName,
-              PackageManager.GET_META_DATA
-            ).applicationInfo
-          )
+          val icon = if (entity.packageName.contains("/").not() || _icon == null) {
+            appIconLoader.loadIcon(
+              PackageUtils.getPackageInfo(entity.packageName).applicationInfo
+            )
+          } else {
+            _icon
+          }
           load(icon)
         }
         setOnClickListener {
@@ -155,16 +165,21 @@ class SnapshotDetailActivity :
           }
         }
       }
-      snapshotTitle.appNameView.text = getDiffString(entity.labelDiff, isNewOrDeleted)
-      snapshotTitle.packageNameView.text = entity.packageName
-      snapshotTitle.versionInfoView.text = getDiffString(
+      snapshotTitle.appNameView.text = LCAppUtils.getDiffString(entity.labelDiff, isNewOrDeleted)
+      snapshotTitle.packageNameView.text = entity.packageName.takeIf { it.contains("/").not() }
+        ?: "${entity.packageName.substringBeforeLast("/")} $ARROW ${
+          entity.packageName.substringAfterLast(
+            "/"
+          )
+        }"
+      snapshotTitle.versionInfoView.text = LCAppUtils.getDiffString(
         entity.versionNameDiff,
         entity.versionCodeDiff,
         isNewOrDeleted,
         "%s (%s)"
       )
       snapshotTitle.targetApiView.text =
-        String.format("API %s", getDiffString(entity.targetApiDiff, isNewOrDeleted))
+        String.format("API %s", LCAppUtils.getDiffString(entity.targetApiDiff, isNewOrDeleted))
 
       if (entity.packageSizeDiff.old > 0L) {
         snapshotTitle.packageSizeView.isVisible = true
@@ -172,7 +187,7 @@ class SnapshotDetailActivity :
           entity.packageSizeDiff.old.sizeToString(this@SnapshotDetailActivity),
           entity.packageSizeDiff.new?.sizeToString(this@SnapshotDetailActivity)
         )
-        snapshotTitle.packageSizeView.text = getDiffString(sizeDiff, isNewOrDeleted)
+        snapshotTitle.packageSizeView.text = LCAppUtils.getDiffString(sizeDiff, isNewOrDeleted)
       } else {
         snapshotTitle.packageSizeView.isVisible = false
       }
@@ -303,31 +318,6 @@ class SnapshotDetailActivity :
     return returnList
   }
 
-  private fun <T> getDiffString(
-    diff: SnapshotDiffItem.DiffNode<T>,
-    isNewOrDeleted: Boolean = false,
-    format: String = "%s"
-  ): String {
-    return if (diff.old != diff.new && !isNewOrDeleted) {
-      "${format.format(diff.old)} $ARROW ${format.format(diff.new)}"
-    } else {
-      format.format(diff.old)
-    }
-  }
-
-  private fun getDiffString(
-    diff1: SnapshotDiffItem.DiffNode<*>,
-    diff2: SnapshotDiffItem.DiffNode<*>,
-    isNewOrDeleted: Boolean = false,
-    format: String = "%s"
-  ): String {
-    return if ((diff1.old != diff1.new || diff2.old != diff2.new) && !isNewOrDeleted) {
-      "${format.format(diff1.old, diff2.old)} $ARROW ${format.format(diff1.new, diff2.new)}"
-    } else {
-      format.format(diff1.old, diff2.old)
-    }
-  }
-
   private fun generateReport() {
     val sb = StringBuilder()
     sb.append(binding.snapshotTitle.appNameView.text).appendLine()
@@ -346,12 +336,14 @@ class SnapshotDetailActivity :
         is SnapshotTitleNode -> {
           sb.append("[${getComponentName(it.type)}]").appendLine()
         }
+
         is SnapshotComponentNode -> {
           sb.append(getDiffTypeLabel(it.item.diffType))
             .append(" ")
             .append(it.item.title)
             .appendLine()
         }
+
         is SnapshotNativeNode -> {
           sb.append(getDiffTypeLabel(it.item.diffType))
             .append(" ")

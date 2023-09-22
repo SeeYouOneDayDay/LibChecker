@@ -5,6 +5,9 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
@@ -13,10 +16,10 @@ import android.view.Gravity
 import android.view.MenuItem
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import androidx.activity.addCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.core.os.bundleOf
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -32,17 +35,22 @@ import com.absinthe.libchecker.compat.PackageManagerCompat
 import com.absinthe.libchecker.constant.Constants
 import com.absinthe.libchecker.database.entity.SnapshotItem
 import com.absinthe.libchecker.databinding.ActivityComparisonBinding
+import com.absinthe.libchecker.model.SnapshotDiffItem
 import com.absinthe.libchecker.recyclerview.HorizontalSpacesItemDecoration
 import com.absinthe.libchecker.recyclerview.adapter.snapshot.SnapshotAdapter
 import com.absinthe.libchecker.ui.base.BaseActivity
+import com.absinthe.libchecker.ui.base.BaseAlertDialogBuilder
 import com.absinthe.libchecker.ui.detail.EXTRA_ENTITY
+import com.absinthe.libchecker.ui.detail.EXTRA_ICON
 import com.absinthe.libchecker.ui.detail.SnapshotDetailActivity
 import com.absinthe.libchecker.ui.fragment.snapshot.TimeNodeBottomSheetDialogFragment
 import com.absinthe.libchecker.utils.FileUtils
 import com.absinthe.libchecker.utils.PackageUtils
+import com.absinthe.libchecker.utils.UiUtils
 import com.absinthe.libchecker.utils.extensions.addPaddingTop
 import com.absinthe.libchecker.utils.extensions.dp
 import com.absinthe.libchecker.utils.extensions.getAppName
+import com.absinthe.libchecker.utils.extensions.getColorByAttr
 import com.absinthe.libchecker.utils.extensions.getPackageSize
 import com.absinthe.libchecker.utils.extensions.getPermissionsList
 import com.absinthe.libchecker.utils.extensions.getVersionCode
@@ -57,11 +65,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import me.zhanghai.android.appiconloader.AppIconLoader
 import okio.buffer
 import okio.sink
 import okio.source
 import rikka.widget.borderview.BorderView
-import timber.log.Timber
 
 const val VF_LOADING = 0
 const val VF_LIST = 1
@@ -75,6 +84,8 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
   private var isLeftPartChoosing = false
   private var leftUri: Uri? = null
   private var rightUri: Uri? = null
+  private var leftIconOriginal: Bitmap? = null
+  private var rightIconOriginal: Bitmap? = null
 
   private lateinit var chooseApkResultLauncher: ActivityResultLauncher<String>
 
@@ -107,9 +118,6 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
   }
 
   private fun registerCallbacks() {
-    onBackPressedDispatcher.addCallback(this, true) {
-      finish()
-    }
     chooseApkResultLauncher =
       registerForActivityResult(ActivityResultContracts.GetContent()) {
         if (isLeftPartChoosing) {
@@ -201,11 +209,10 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
               leftTimeStamp.coerceAtMost(rightTimeStamp),
               leftTimeStamp.coerceAtLeast(rightTimeStamp)
             )
+            flip(VF_LOADING)
           } else {
             compareDiffContainsApk()
           }
-
-          flip(VF_LOADING)
         }
         setOnLongClickListener {
           if (adapter.data.isNotEmpty()) {
@@ -308,6 +315,7 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
           }
 
           invalidateDashboard()
+          compareDiffContainsApk()
         } else {
           showToast(R.string.album_item_comparison_invalid_shared_items)
         }
@@ -351,6 +359,12 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
   }
 
   private fun compareDiffContainsApk() = lifecycleScope.launch(Dispatchers.IO) {
+    var dialog: AlertDialog?
+    withContext(Dispatchers.Main) {
+      dialog = UiUtils.createLoadingDialog(this@ComparisonActivity).also {
+        it.show()
+      }
+    }
     val leftPackage = runCatching {
       if (leftTimeStamp == -1L && leftUri != null) {
         getSnapshotItemByUri(leftUri!!, Constants.TEMP_PACKAGE)
@@ -365,6 +379,31 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
         null
       }
     }.getOrNull()
+
+    withContext(Dispatchers.Main) {
+      dialog?.dismiss()
+    }
+
+    if (leftPackage != null && rightPackage != null) {
+      if (leftPackage.packageName != rightPackage.packageName) {
+        withContext(Dispatchers.Main) {
+          BaseAlertDialogBuilder(this@ComparisonActivity)
+            .setTitle(R.string.dialog_title_compare_diff_apk)
+            .setMessage(R.string.dialog_message_compare_diff_apk)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+              navigateToSnapshotDetail(
+                leftPackage,
+                rightPackage
+              )
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+        }
+      } else {
+        navigateToSnapshotDetail(leftPackage, rightPackage)
+      }
+      return@launch
+    }
     val leftSnapshots: List<SnapshotItem> = if (leftPackage != null) {
       listOf(leftPackage)
     } else if (leftTimeStamp > 0) {
@@ -393,7 +432,38 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
       return@launch
     }
 
+    flip(VF_LOADING)
     viewModel.compareDiffWithSnapshotList(-1, leftSnapshots, rightSnapshots)
+  }
+
+  private fun navigateToSnapshotDetail(left: SnapshotItem, right: SnapshotItem) {
+    val snapshotDiff = SnapshotDiffItem(
+      packageName = "${left.packageName}/${right.packageName}",
+      updateTime = -1,
+      labelDiff = SnapshotDiffItem.DiffNode(left.label, right.label),
+      versionNameDiff = SnapshotDiffItem.DiffNode(left.versionName, right.versionName),
+      versionCodeDiff = SnapshotDiffItem.DiffNode(left.versionCode, right.versionCode),
+      abiDiff = SnapshotDiffItem.DiffNode(left.abi, right.abi),
+      targetApiDiff = SnapshotDiffItem.DiffNode(left.targetApi, right.targetApi),
+      nativeLibsDiff = SnapshotDiffItem.DiffNode(left.nativeLibs, right.nativeLibs),
+      servicesDiff = SnapshotDiffItem.DiffNode(left.services, right.services),
+      activitiesDiff = SnapshotDiffItem.DiffNode(left.activities, right.activities),
+      receiversDiff = SnapshotDiffItem.DiffNode(left.receivers, right.receivers),
+      providersDiff = SnapshotDiffItem.DiffNode(left.providers, right.providers),
+      permissionsDiff = SnapshotDiffItem.DiffNode(left.permissions, right.permissions),
+      metadataDiff = SnapshotDiffItem.DiffNode(left.metadata, right.metadata),
+      packageSizeDiff = SnapshotDiffItem.DiffNode(left.packageSize, right.packageSize),
+      isTrackItem = false
+    )
+
+    val intent = Intent(this, SnapshotDetailActivity::class.java)
+      .putExtras(
+        bundleOf(
+          EXTRA_ENTITY to snapshotDiff,
+          EXTRA_ICON to getIconsCombo(leftIconOriginal!!, rightIconOriginal!!)
+        )
+      )
+    startActivity(intent)
   }
 
   private fun getSnapshotItemByUri(uri: Uri, fileName: String): SnapshotItem {
@@ -402,7 +472,6 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
       contentResolver.openInputStream(uri)?.use { inputStream ->
         val fileSize = inputStream.available()
         val freeSize = Environment.getExternalStorageDirectory().freeSpace
-        Timber.d("fileSize=$fileSize, freeSize=$freeSize")
 
         if (freeSize > fileSize * 1.5) {
           tf.sink().buffer().use { sink ->
@@ -424,6 +493,14 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
           pi = PackageManagerCompat.getPackageArchiveInfo(tf.path, flag)?.also {
             it.applicationInfo.sourceDir = tf.path
             it.applicationInfo.publicSourceDir = tf.path
+          }
+
+          val iconSize = resources.getDimensionPixelSize(R.dimen.lib_detail_icon_size)
+          val appIconLoader = AppIconLoader(iconSize, false, this)
+          if (fileName == Constants.TEMP_PACKAGE) {
+            leftIconOriginal = appIconLoader.loadIcon(pi!!.applicationInfo)
+          } else {
+            rightIconOriginal = appIconLoader.loadIcon(pi!!.applicationInfo)
           }
         } else {
           showToast(R.string.toast_not_enough_storage_space)
@@ -447,13 +524,13 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
         abi = PackageUtils.getAbi(it).toShort(),
         targetApi = ai.targetSdkVersion.toShort(),
         nativeLibs = PackageUtils.getNativeDirLibs(it).toJson().orEmpty(),
-        services = PackageUtils.getComponentStringList(it.packageName, SERVICE, false)
+        services = PackageUtils.getComponentStringList(it, SERVICE, false)
           .toJson().orEmpty(),
-        activities = PackageUtils.getComponentStringList(it.packageName, ACTIVITY, false)
+        activities = PackageUtils.getComponentStringList(it, ACTIVITY, false)
           .toJson().orEmpty(),
-        receivers = PackageUtils.getComponentStringList(it.packageName, RECEIVER, false)
+        receivers = PackageUtils.getComponentStringList(it, RECEIVER, false)
           .toJson().orEmpty(),
-        providers = PackageUtils.getComponentStringList(it.packageName, PROVIDER, false)
+        providers = PackageUtils.getComponentStringList(it, PROVIDER, false)
           .toJson().orEmpty(),
         permissions = it.getPermissionsList().toJson().orEmpty(),
         metadata = PackageUtils.getMetaDataItems(it).toJson().orEmpty(),
@@ -474,9 +551,9 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
     }
   }
 
-  private fun flip(child: Int) {
+  private fun flip(child: Int) = lifecycleScope.launch(Dispatchers.Main) {
     if (binding.vfContainer.displayedChild == child) {
-      return
+      return@launch
     }
     if (child == VF_LOADING) {
       if (binding.extendedFab.isShown) {
@@ -491,5 +568,33 @@ class ComparisonActivity : BaseActivity<ActivityComparisonBinding>() {
     }
 
     binding.vfContainer.displayedChild = child
+  }
+
+  private fun getIconsCombo(leftIconOrigin: Bitmap, rightIconOrigin: Bitmap): Bitmap {
+    val iconSize = resources.getDimensionPixelSize(R.dimen.lib_detail_icon_size)
+    val leftIcon = Bitmap.createBitmap(leftIconOrigin, 0, 0, leftIconOrigin.width / 2, leftIconOrigin.height)
+    val rightIcon = Bitmap.createBitmap(rightIconOrigin, rightIconOrigin.width / 2, 0, rightIconOrigin.width / 2, rightIconOrigin.height)
+    val comboIcon = Bitmap.createBitmap(iconSize, iconSize, Bitmap.Config.ARGB_8888)
+    val isSameIcon = leftIconOrigin.sameAs(rightIconOrigin)
+
+    Canvas(comboIcon).apply {
+      drawBitmap(leftIcon, 0f, 0f, null)
+      drawBitmap(rightIcon, iconSize / 2f, 0f, null)
+      if (!isSameIcon) {
+        drawLine(
+          iconSize / 2f,
+          0f,
+          iconSize / 2f,
+          iconSize.toFloat(),
+          Paint().apply {
+            color = getColorByAttr(com.google.android.material.R.attr.colorOnSurface)
+            strokeWidth = 2.dp.toFloat()
+          }
+        )
+      }
+      save()
+      restore()
+    }
+    return comboIcon
   }
 }
